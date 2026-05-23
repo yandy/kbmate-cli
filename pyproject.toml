@@ -1,7 +1,14 @@
 [project]
 name = "mate-cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI tools for knowledge base management"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pymupdf4llm",
+    "pypandoc",
+    "typer>=0.15.0",
+]
+
+[project.scripts]
+kbmate = "mate_cli.main:app"
