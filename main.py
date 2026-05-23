@@ -1,6 +1,4 @@
-def main():
-    print("Hello from mate-cli!")
-
+from mate_cli.main import app
 
 if __name__ == "__main__":
-    main()
+    app()
