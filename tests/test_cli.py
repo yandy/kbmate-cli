@@ -18,19 +18,27 @@ def test_convert_missing_file():
     assert result.exit_code != 0
 
 
+FIXTURE_DIR = Path(__file__).parent / "evals"
+
+
 def test_convert_pdf():
-    result = runner.invoke(app, ["convert", "evals/minimax.pdf", "--output-dir", "/tmp/test_cli_output"])
+    pdf = FIXTURE_DIR / "eigent README CN.pdf"
+    result = runner.invoke(app, ["convert", str(pdf), "--output-dir", "/tmp/test_cli_output"])
+    assert result.exit_code == 0
+
+
+def test_convert_lunwen_pdf():
+    pdf = FIXTURE_DIR / "论文.pdf"
+    result = runner.invoke(app, ["convert", str(pdf), "--output-dir", "/tmp/test_cli_lunwen"])
     assert result.exit_code == 0
 
 
 def test_convert_pdf_with_spaces_in_filename():
-    src = Path("/tmp/test with spaces.pdf")
-    src.parent.mkdir(parents=True, exist_ok=True)
-    src.write_bytes(Path("evals/minimax.pdf").read_bytes())
+    src = FIXTURE_DIR / "eigent README CN.pdf"
     out = Path("/tmp/test_cli_spaces_output")
     result = runner.invoke(app, ["convert", str(src), "--output-dir", str(out)])
     assert result.exit_code == 0, f"Failed with output: {result.output}"
-    assets_dir = out / "assets" / "test_with_spaces"
+    assets_dir = out / "assets" / "eigent_README_CN"
     assert assets_dir.exists()
     images = list(assets_dir.glob("*"))
     assert len(images) > 0, f"No images found in {assets_dir}"
