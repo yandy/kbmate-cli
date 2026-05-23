@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import typer
+from pymupdf4llm.helpers.utils import md_path as _md_path
 
 app = typer.Typer()
 
@@ -25,9 +26,13 @@ def convert(
         typer.echo(f"Error: unsupported format: {ext} (supported: .pdf, .docx)", err=True)
         raise typer.Exit(code=1)
 
-    stem = src.stem
     out_dir = Path(output_dir)
-    assets_dir = out_dir / "assets" / stem
+    assets_parent = out_dir / "assets"
+
+    sanitized_ref, _ = _md_path(str(assets_parent), f"{src.stem}.x")
+    safe_stem = Path(sanitized_ref).stem
+
+    assets_dir = assets_parent / safe_stem
     converts_dir = out_dir / "converts"
     converts_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
@@ -62,7 +67,7 @@ def convert(
 
             shutil.rmtree(pandoc_output)
 
-    md_path = converts_dir / f"{stem}.md"
+    md_path = converts_dir / f"{safe_stem}.md"
     md_path.write_text(markdown_content, encoding="utf-8")
     typer.echo(f"Converted: {src} -> {md_path}")
 
