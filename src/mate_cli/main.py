@@ -48,19 +48,19 @@ def convert(
     elif ext == ".docx":
         from mate_cli.docx_converter import convert_docx
 
-        media_dir = assets_dir / "media"
-        markdown_content = convert_docx(str(src), str(media_dir))
+        pandoc_output = assets_dir / "pandoc_output"
+        markdown_content = convert_docx(str(src), str(pandoc_output))
 
         from mate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
         markdown_content = normalize_image_refs(markdown_content)
         markdown_content = extract_and_relink_images(
-            markdown_content, str(media_dir), str(assets_dir)
+            markdown_content, str(pandoc_output), str(assets_dir)
         )
-        if media_dir.exists():
+        if pandoc_output.exists():
             import shutil
 
-            shutil.rmtree(media_dir)
+            shutil.rmtree(pandoc_output)
 
     md_path = converts_dir / f"{stem}.md"
     md_path.write_text(markdown_content, encoding="utf-8")

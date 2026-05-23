@@ -21,11 +21,12 @@ def extract_and_relink_images(markdown: str, src_dir: str, dst_dir: str) -> str:
 
     for match in img_pattern.finditer(markdown):
         img_path = match.group(1)
-        src_file = src_path / Path(img_path).name
-        if src_file.exists():
+        filename = Path(img_path).name
+        src_file = next(src_path.rglob(filename), None)
+        if src_file is not None and src_file.is_file():
             new_name = f"image-{counter:03d}{src_file.suffix}"
             dst_file = dst_path / new_name
-            shutil.copy2(str(src_file), str(dst_file))
+            shutil.move(str(src_file), str(dst_file))
             old_ref = match.group(0)
             new_ref = f"![](/assets/{dst_path.name}/{new_name})"
             result = result.replace(old_ref, new_ref, 1)
