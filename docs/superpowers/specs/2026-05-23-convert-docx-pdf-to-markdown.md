@@ -2,7 +2,7 @@
 
 ## Overview
 
-`mate-cli` needs a `convert` command that converts `.docx` and `.pdf` files to markdown format, with images extracted to an `assets` subdirectory and markdown saved to a `converts` subdirectory.
+`kbmate-cli` needs a `convert` command that converts `.docx` and `.pdf` files to markdown format, with images extracted to an `assets` subdirectory and markdown saved to a `converts` subdirectory.
 
 ## Design
 
@@ -12,7 +12,7 @@
 
 ```toml
 [project.scripts]
-kbmate = "mate_cli.main:app"
+kbmate = "kbmate_cli.main:app"
 ```
 
 安装后可直接使用 `kbmate convert <source_file>`。
@@ -33,9 +33,9 @@ Using `typer`:
 ### Project Structure
 
 ```
-mate-cli/
+kbmate-cli/
 ├── src/
-│   └── mate_cli/
+│   └── kbmate_cli/
 │       ├── __init__.py
 │       └── main.py          # typer app + convert command
 ├── evals/                    # test files
@@ -78,7 +78,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kbmate = "mate_cli.main:app"
+kbmate = "kbmate_cli.main:app"
 ```
 
 `pandoc` must be available on the system (already installed at `/usr/bin/pandoc`).
@@ -86,7 +86,7 @@ kbmate = "mate_cli.main:app"
 ### Architecture
 
 ```
-src/mate_cli/main.py
+src/kbmate_cli/main.py
   └── app = typer.Typer()
        └── convert()
             ├── detect format (.docx / .pdf)

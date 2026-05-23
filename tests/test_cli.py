@@ -1,6 +1,6 @@
 import pytest
 from typer.testing import CliRunner
-from mate_cli.main import app
+from kbmate_cli.main import app
 
 runner = CliRunner()
 

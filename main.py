@@ -1,4 +1,4 @@
-from mate_cli.main import app
+from kbmate_cli.main import app
 
 if __name__ == "__main__":
     app()

@@ -13,12 +13,12 @@
 ### Task 1: Set up project structure and dependencies
 
 **Files:**
-- Create: `src/mate_cli/__init__.py`
+- Create: `src/kbmate_cli/__init__.py`
 - Modify: `pyproject.toml`
 
 - [ ] **Step 1: Create package structure**
 
-Create `src/mate_cli/__init__.py`:
+Create `src/kbmate_cli/__init__.py`:
 ```python
 
 ```
@@ -27,7 +27,7 @@ Create `src/mate_cli/__init__.py`:
 
 ```toml
 [project]
-name = "mate-cli"
+name = "kbmate-cli"
 version = "0.1.0"
 description = "CLI tools for knowledge base management"
 readme = "README.md"
@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-kbmate = "mate_cli.main:app"
+kbmate = "kbmate_cli.main:app"
 ```
 
 - [ ] **Step 3: Install dependencies**
@@ -50,7 +50,7 @@ Expected: All dependencies installed without errors.
 
 - [ ] **Step 4: Verify typer app loads**
 
-Run: `uv run python -c "from mate_cli.main import app; print(app)"`
+Run: `uv run python -c "from kbmate_cli.main import app; print(app)"`
 
 Expected: Prints `<typer.models.TyperInfo object>` or similar (should not error).
 
@@ -59,7 +59,7 @@ Expected: Prints `<typer.models.TyperInfo object>` or similar (should not error)
 ### Task 2: Implement PDF converter module
 
 **Files:**
-- Create: `src/mate_cli/pdf_converter.py`
+- Create: `src/kbmate_cli/pdf_converter.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -67,7 +67,7 @@ Create `tests/test_pdf_converter.py`:
 ```python
 import pytest
 from pathlib import Path
-from mate_cli.pdf_converter import convert_pdf
+from kbmate_cli.pdf_converter import convert_pdf
 
 
 def test_convert_pdf_returns_markdown_content():
@@ -99,7 +99,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 2: Write minimal implementation**
 
-Create `src/mate_cli/pdf_converter.py`:
+Create `src/kbmate_cli/pdf_converter.py`:
 ```python
 from pathlib import Path
 
@@ -134,7 +134,7 @@ Expected: All 3 tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/mate_cli/__init__.py src/mate_cli/pdf_converter.py tests/test_pdf_converter.py pyproject.toml
+git add src/kbmate_cli/__init__.py src/kbmate_cli/pdf_converter.py tests/test_pdf_converter.py pyproject.toml
 git commit -m "feat: add pdf converter module"
 ```
 
@@ -143,7 +143,7 @@ git commit -m "feat: add pdf converter module"
 ### Task 3: Implement DOCX converter module
 
 **Files:**
-- Create: `src/mate_cli/docx_converter.py`
+- Create: `src/kbmate_cli/docx_converter.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -151,7 +151,7 @@ Create `tests/test_docx_converter.py`:
 ```python
 import pytest
 from pathlib import Path
-from mate_cli.docx_converter import convert_docx
+from kbmate_cli.docx_converter import convert_docx
 
 
 def test_convert_docx_returns_markdown_content():
@@ -183,7 +183,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 2: Write minimal implementation**
 
-Create `src/mate_cli/docx_converter.py`:
+Create `src/kbmate_cli/docx_converter.py`:
 ```python
 from pathlib import Path
 
@@ -210,7 +210,7 @@ Expected: All 3 tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/mate_cli/docx_converter.py tests/test_docx_converter.py
+git add src/kbmate_cli/docx_converter.py tests/test_docx_converter.py
 git commit -m "feat: add docx converter module"
 ```
 
@@ -219,7 +219,7 @@ git commit -m "feat: add docx converter module"
 ### Task 4: Implement image path post-processor
 
 **Files:**
-- Create: `src/mate_cli/image_helper.py`
+- Create: `src/kbmate_cli/image_helper.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -227,7 +227,7 @@ Create `tests/test_image_helper.py`:
 ```python
 import pytest
 from pathlib import Path
-from mate_cli.image_helper import normalize_image_refs, extract_and_relink_images
+from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
 
 def test_normalize_image_refs_strips_pandoc_attrs():
@@ -271,7 +271,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 2: Write minimal implementation**
 
-Create `src/mate_cli/image_helper.py`:
+Create `src/kbmate_cli/image_helper.py`:
 ```python
 import re
 import shutil
@@ -317,7 +317,7 @@ Expected: All tests PASS.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/mate_cli/image_helper.py tests/test_image_helper.py
+git add src/kbmate_cli/image_helper.py tests/test_image_helper.py
 git commit -m "feat: add image post-processing module"
 ```
 
@@ -326,7 +326,7 @@ git commit -m "feat: add image post-processing module"
 ### Task 5: Wire up the CLI command (typer app)
 
 **Files:**
-- Create: `src/mate_cli/main.py`
+- Create: `src/kbmate_cli/main.py`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -334,7 +334,7 @@ Create `tests/test_cli.py`:
 ```python
 import pytest
 from typer.testing import CliRunner
-from mate_cli.main import app
+from kbmate_cli.main import app
 
 runner = CliRunner()
 
@@ -361,7 +361,7 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 2: Write minimal implementation**
 
-Create `src/mate_cli/main.py`:
+Create `src/kbmate_cli/main.py`:
 ```python
 from pathlib import Path
 
@@ -395,23 +395,23 @@ def convert(
     markdown_content: str = ""
 
     if ext == ".pdf":
-        from mate_cli.pdf_converter import convert_pdf
+        from kbmate_cli.pdf_converter import convert_pdf
 
         markdown_content = convert_pdf(str(src), str(assets_dir))
 
-        from mate_cli.image_helper import extract_and_relink_images
+        from kbmate_cli.image_helper import extract_and_relink_images
 
         markdown_content = extract_and_relink_images(
             markdown_content, str(assets_dir), str(assets_dir)
         )
 
     elif ext == ".docx":
-        from mate_cli.docx_converter import convert_docx
+        from kbmate_cli.docx_converter import convert_docx
 
         media_dir = assets_dir / "media"
         markdown_content = convert_docx(str(src), str(media_dir))
 
-        from mate_cli.image_helper import normalize_image_refs, extract_and_relink_images
+        from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
         markdown_content = normalize_image_refs(markdown_content)
         markdown_content = extract_and_relink_images(
@@ -439,9 +439,9 @@ Expected: All 3 tests PASS.
 - [ ] **Step 4: Run manual integration tests against all eval files**
 
 ```bash
-uv run python -m src.mate_cli.main convert evals/minimaxzh.docx
-uv run python -m src.mate_cli.main convert evals/minimax.pdf
-uv run python -m src.mate_cli.main convert evals/2412.20138v7.pdf
+uv run python -m src.kbmate_cli.main convert evals/minimaxzh.docx
+uv run python -m src.kbmate_cli.main convert evals/minimax.pdf
+uv run python -m src.kbmate_cli.main convert evals/2412.20138v7.pdf
 ```
 
 Expected: Each command completes without error.
@@ -458,7 +458,7 @@ Expected: Markdown files exist in `raw/converts/`, image directories exist in `r
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/mate_cli/main.py tests/test_cli.py
+git add src/kbmate_cli/main.py tests/test_cli.py
 git commit -m "feat: wire up kbmate convert CLI command"
 ```
 
@@ -473,7 +473,7 @@ git commit -m "feat: wire up kbmate convert CLI command"
 
 Replace contents with:
 ```python
-from mate_cli.main import app
+from kbmate_cli.main import app
 
 if __name__ == "__main__":
     app()
@@ -506,7 +506,7 @@ Expected: All tests PASS.
 
 Run: `uv tool install . && kbmate convert evals/minimaxzh.docx`
 
-Expected: Command works. Then: `uv tool uninstall mate-cli`
+Expected: Command works. Then: `uv tool uninstall kbmate-cli`
 
 - [ ] **Step 3: Final commit**
 

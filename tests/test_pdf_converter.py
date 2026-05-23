@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from mate_cli.pdf_converter import convert_pdf
+from kbmate_cli.pdf_converter import convert_pdf
 
 
 def test_convert_pdf_returns_markdown_content():

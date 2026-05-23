@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from mate_cli.image_helper import normalize_image_refs, extract_and_relink_images
+from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
 
 def test_normalize_image_refs_strips_pandoc_attrs():

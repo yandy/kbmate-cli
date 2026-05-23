@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from mate_cli.docx_converter import convert_docx
+from kbmate_cli.docx_converter import convert_docx
 
 
 def test_convert_docx_returns_markdown_content():

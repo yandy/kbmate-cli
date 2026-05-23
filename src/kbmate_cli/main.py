@@ -35,23 +35,23 @@ def convert(
     markdown_content: str = ""
 
     if ext == ".pdf":
-        from mate_cli.pdf_converter import convert_pdf
+        from kbmate_cli.pdf_converter import convert_pdf
 
         markdown_content = convert_pdf(str(src), str(assets_dir))
 
-        from mate_cli.image_helper import extract_and_relink_images
+        from kbmate_cli.image_helper import extract_and_relink_images
 
         markdown_content = extract_and_relink_images(
             markdown_content, str(assets_dir), str(assets_dir)
         )
 
     elif ext == ".docx":
-        from mate_cli.docx_converter import convert_docx
+        from kbmate_cli.docx_converter import convert_docx
 
         pandoc_output = assets_dir / "pandoc_output"
         markdown_content = convert_docx(str(src), str(pandoc_output))
 
-        from mate_cli.image_helper import normalize_image_refs, extract_and_relink_images
+        from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
         markdown_content = normalize_image_refs(markdown_content)
         markdown_content = extract_and_relink_images(
