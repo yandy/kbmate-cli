@@ -14,28 +14,57 @@ def main():
     """Convert PDF/DOCX files to markdown."""
 
 
+def _resolve_source(source_file: str) -> tuple[str, Path | None]:
+    if not is_url(source_file):
+        return source_file, None
+    if source_file.startswith("file://"):
+        return urlparse(source_file).path, None
+    suffix = resolve_file_type(source_file)
+    temp_path = download_to_temp(source_file, suffix)
+    if temp_path.stat().st_size == 0:
+        temp_path.unlink()
+        raise ValueError("downloaded file is empty")
+    return str(temp_path), temp_path
+
+
+def _convert_pdf(src: Path, assets_dir: Path) -> str:
+    from kbmate_cli.pdf_converter import convert_pdf
+    from kbmate_cli.image_helper import extract_and_relink_images
+
+    md = convert_pdf(str(src), str(assets_dir))
+    return extract_and_relink_images(md, str(assets_dir), str(assets_dir))
+
+
+def _convert_docx(src: Path, assets_dir: Path) -> str:
+    from kbmate_cli.docx_converter import convert_docx
+    from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
+
+    pandoc_output = assets_dir / "pandoc_output"
+    md = convert_docx(str(src), str(pandoc_output))
+    md = normalize_image_refs(md)
+    md = extract_and_relink_images(md, str(pandoc_output), str(assets_dir))
+    if pandoc_output.exists():
+        import shutil
+        shutil.rmtree(pandoc_output)
+    return md
+
+
+_CONVERTERS = {
+    ".pdf": _convert_pdf,
+    ".docx": _convert_docx,
+}
+
+
 @app.command()
 def convert(
     source_file: str = typer.Argument(..., help="Path or URL to the .docx or .pdf file"),
     output_dir: str = typer.Option("raw", help="Output directory"),
 ):
-    temp_path: Path | None = None
-
-    if is_url(source_file):
-        if source_file.startswith("file://"):
-            source_file = urlparse(source_file).path
-        else:
-            try:
-                suffix = resolve_file_type(source_file)
-                temp_path = download_to_temp(source_file, suffix)
-                if temp_path.stat().st_size == 0:
-                    temp_path.unlink()
-                    typer.echo("Error: downloaded file is empty", err=True)
-                    raise typer.Exit(code=1)
-                source_file = str(temp_path)
-            except (ValueError, URLError) as e:
-                typer.echo(f"Error: {e}", err=True)
-                raise typer.Exit(code=1)
+    try:
+        source_file, temp_path = _resolve_source(source_file)
+    except (ValueError, URLError) as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
 
     src = Path(source_file)
     if not src.exists():
@@ -43,8 +72,10 @@ def convert(
         raise typer.Exit(code=1)
 
     ext = src.suffix.lower()
-    if ext not in (".pdf", ".docx"):
-        typer.echo(f"Error: unsupported format: {ext} (supported: .pdf, .docx)", err=True)
+    converter = _CONVERTERS.get(ext)
+    if converter is None:
+        fmts = ", ".join(_CONVERTERS)
+        typer.echo(f"Error: unsupported format: {ext} (supported: {fmts})", err=True)
         raise typer.Exit(code=1)
 
     out_dir = Path(output_dir)
@@ -58,37 +89,8 @@ def convert(
     converts_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
 
-    markdown_content: str = ""
-
     try:
-        if ext == ".pdf":
-            from kbmate_cli.pdf_converter import convert_pdf
-
-            markdown_content = convert_pdf(str(src), str(assets_dir))
-
-            from kbmate_cli.image_helper import extract_and_relink_images
-
-            markdown_content = extract_and_relink_images(
-                markdown_content, str(assets_dir), str(assets_dir)
-            )
-
-        elif ext == ".docx":
-            from kbmate_cli.docx_converter import convert_docx
-
-            pandoc_output = assets_dir / "pandoc_output"
-            markdown_content = convert_docx(str(src), str(pandoc_output))
-
-            from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
-
-            markdown_content = normalize_image_refs(markdown_content)
-            markdown_content = extract_and_relink_images(
-                markdown_content, str(pandoc_output), str(assets_dir)
-            )
-            if pandoc_output.exists():
-                import shutil
-
-                shutil.rmtree(pandoc_output)
-
+        markdown_content = converter(src, assets_dir)
         md_path = converts_dir / f"{safe_stem}.md"
         md_path.write_text(markdown_content, encoding="utf-8")
         typer.echo(f"Converted: {src} -> {md_path}")

@@ -9,7 +9,7 @@ import typer
 
 
 def is_url(s: str) -> bool:
-    return s.startswith("http://") or s.startswith("https://") or s.startswith("file://")
+    return urlparse(s).scheme in ("http", "https", "file")
 
 
 def guess_ext_from_url(url: str) -> str | None:
@@ -35,12 +35,9 @@ def probe_content_type(url: str) -> str | None:
 
 
 def resolve_file_type(url: str) -> str:
-    ext = probe_content_type(url)
-    if ext:
-        return ext
-    ext = guess_ext_from_url(url)
-    if ext:
-        return ext
+    for probe in (probe_content_type, guess_ext_from_url):
+        if ext := probe(url):
+            return ext
     raise ValueError(f"cannot determine file type for URL: {url}")
 
 
