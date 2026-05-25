@@ -1,6 +1,6 @@
 [project]
 name = "kbmate-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI tools for knowledge base management"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -20,7 +20,11 @@ build-backend = "hatchling.build"
 [tool.uv]
 package = true
 
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=85"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "pytest-cov>=6.0.0",
 ]
