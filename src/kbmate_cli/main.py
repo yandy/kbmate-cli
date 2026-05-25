@@ -1,7 +1,9 @@
 from pathlib import Path
+from urllib.parse import urlparse
 
 import typer
 from pymupdf4llm.helpers.utils import md_path as _md_path
+from kbmate_cli.url_downloader import download_to_temp, is_url, print_cleanup_hint, resolve_file_type
 
 app = typer.Typer()
 
@@ -13,9 +15,19 @@ def main():
 
 @app.command()
 def convert(
-    source_file: str = typer.Argument(..., help="Path to the .docx or .pdf file"),
+    source_file: str = typer.Argument(..., help="Path or URL to the .docx or .pdf file"),
     output_dir: str = typer.Option("raw", help="Output directory"),
 ):
+    temp_path: Path | None = None
+
+    if is_url(source_file):
+        if source_file.startswith("file://"):
+            source_file = urlparse(source_file).path
+        else:
+            suffix = resolve_file_type(source_file)
+            temp_path = download_to_temp(source_file, suffix)
+            source_file = str(temp_path)
+
     src = Path(source_file)
     if not src.exists():
         typer.echo(f"Error: file not found: {source_file}", err=True)
@@ -70,6 +82,8 @@ def convert(
     md_path = converts_dir / f"{safe_stem}.md"
     md_path.write_text(markdown_content, encoding="utf-8")
     typer.echo(f"Converted: {src} -> {md_path}")
+    if temp_path:
+        print_cleanup_hint(temp_path)
 
 
 if __name__ == "__main__":
