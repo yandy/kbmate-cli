@@ -213,6 +213,38 @@ def test_bulk_convert_mutual_exclusive(tmp_path):
 def test_bulk_convert_no_input():
     result = runner.invoke(app, ["bulk-convert"])
     assert result.exit_code != 0
+    assert "specify either" in result.stderr.lower()
+
+
+def test_bulk_convert_invalid_layout(tmp_path):
+    result = runner.invoke(app, [
+        "bulk-convert", "-r", str(tmp_path),
+        "--output-layout", "invalid",
+    ])
+    assert result.exit_code != 0
+    assert "must be 'flat' or 'mirror'" in result.stderr.lower()
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=[ValueError("mock fail"), "# mock"])})
+def test_bulk_convert_continue_on_error():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf1 = root / "a.pdf"
+        pdf2 = root / "b.pdf"
+        pdf1.write_text("fake")
+        pdf2.write_text("fake")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-r", str(root),
+            "--output-dir", str(out),
+        ])
+        # Batch continues despite one failure
+        assert result.exit_code == 0
+        assert "Error converting" in result.stderr
+        # Exactly one file should have been converted (one fails, one succeeds)
+        converted = list(out.rglob("*.md"))
+        assert len(converted) == 1
 
 
 def test_bulk_convert_help():
