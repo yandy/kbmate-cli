@@ -226,6 +226,55 @@ def test_bulk_convert_invalid_layout(tmp_path):
     assert "must be 'flat' or 'mirror'" in result.stderr.lower()
 
 
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=[RuntimeError("unexpected crash"), "# mock"])})
+def test_bulk_convert_runtime_error_continues_r():
+    """RuntimeError from converter should not crash the entire -r batch"""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf1 = root / "a.pdf"
+        pdf2 = root / "b.pdf"
+        pdf1.write_text("fake")
+        pdf2.write_text("fake")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-r", str(root),
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0
+        assert "Error converting" in result.stderr
+        converted = list(out.rglob("*.md"))
+        assert len(converted) == 1
+
+
+@patch("kbmate_cli.main._resolve_source")
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=[RuntimeError("unexpected crash"), "# mock"])})
+def test_bulk_convert_runtime_error_continues_f(mock_resolve, tmp_path):
+    """RuntimeError from converter should not crash the entire -f batch"""
+    root = tmp_path
+    pdf1 = root / "a.pdf"
+    pdf2 = root / "b.pdf"
+    pdf1.write_text("fake")
+    pdf2.write_text("fake")
+    mock_resolve.side_effect = [
+        (str(pdf1), None),
+        (str(pdf2), None),
+    ]
+
+    flist = root / "sources.txt"
+    flist.write_text("/path/to/a.pdf\n/path/to/b.pdf\n")
+
+    out = root / "out"
+    result = runner.invoke(app, [
+        "bulk-convert", "-f", str(flist),
+        "--output-dir", str(out),
+    ])
+    assert result.exit_code == 0
+    assert "Error converting" in result.stderr
+    converted = list(out.rglob("*.md"))
+    assert len(converted) == 1
+
+
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=[ValueError("mock fail"), "# mock"])})
 def test_bulk_convert_continue_on_error():
     with tempfile.TemporaryDirectory() as tmp:

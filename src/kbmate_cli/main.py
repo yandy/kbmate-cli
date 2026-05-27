@@ -164,7 +164,7 @@ def bulk_convert(
         for src_path in _collect_files_from_dir(root):
             try:
                 convert_single(src_path, out, layout=output_layout, relative_to=root)
-            except ValueError as e:
+            except Exception as e:
                 typer.echo(f"Error converting {src_path}: {e}", err=True)
     else:
         assert file_list is not None
@@ -193,7 +193,7 @@ def bulk_convert(
                 continue
             try:
                 convert_single(src, out, layout=output_layout)
-            except ValueError as e:
+            except Exception as e:
                 typer.echo(f"Error converting {src}: {e}", err=True)
             finally:
                 if temp_path:
