@@ -121,3 +121,101 @@ def test_collect_files_from_list_empty_lines(tmp_path):
     filelist.write_text("/path/to/a.pdf\n\n/path/to/b.docx\n  \n")
     result = _collect_files_from_list(filelist)
     assert result == ["/path/to/a.pdf", "/path/to/b.docx"]
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_bulk_convert_recursive_dir_flat():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf1 = root / "a.pdf"
+        pdf2 = root / "sub" / "b.pdf"
+        pdf1.write_text("fake")
+        (root / "sub").mkdir()
+        pdf2.write_text("fake")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-r", str(root),
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0
+        assert (out / "converts" / "a.md").exists()
+        assert (out / "converts" / "b.md").exists()
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_bulk_convert_recursive_dir_mirror():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf1 = root / "a.pdf"
+        pdf2 = root / "sub" / "b.pdf"
+        pdf1.write_text("fake")
+        (root / "sub").mkdir()
+        pdf2.write_text("fake")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-r", str(root),
+            "--output-dir", str(out),
+            "--output-layout", "mirror",
+        ])
+        assert result.exit_code == 0
+        assert (out / "converts" / "a.md").exists()
+        assert (out / "converts" / "sub" / "b.md").exists()
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_bulk_convert_file_list():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf1 = root / "a.pdf"
+        pdf1.write_text("fake")
+        flist = root / "sources.txt"
+        flist.write_text(str(pdf1) + "\n")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-f", str(flist),
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0
+        assert (out / "converts" / "a.md").exists()
+
+
+@patch("kbmate_cli.main._resolve_source")
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_bulk_convert_file_list_with_url(mock_resolve):
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf_local = root / "downloaded.pdf"
+        pdf_local.write_text("fake")
+        mock_resolve.return_value = (str(pdf_local), None)
+
+        flist = root / "sources.txt"
+        flist.write_text("https://example.com/doc.pdf\n")
+
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-f", str(flist),
+            "--output-dir", str(out),
+        ])
+        assert result.exit_code == 0
+        assert (out / "converts" / "downloaded.md").exists()
+
+
+def test_bulk_convert_mutual_exclusive(tmp_path):
+    result = runner.invoke(app, [
+        "bulk-convert", "-r", str(tmp_path), "-f", str(tmp_path / "list.txt"),
+    ])
+    assert result.exit_code != 0
+
+
+def test_bulk_convert_no_input():
+    result = runner.invoke(app, ["bulk-convert"])
+    assert result.exit_code != 0
+
+
+def test_bulk_convert_help():
+    result = runner.invoke(app, ["bulk-convert", "--help"])
+    assert result.exit_code == 0
+    assert "bulk" in result.stdout.lower() or "-r" in result.stdout

@@ -87,8 +87,7 @@ def convert_single(
     converter = _CONVERTERS.get(ext)
     if converter is None:
         fmts = ", ".join(_CONVERTERS)
-        typer.echo(f"Error: unsupported format: {ext} (supported: {fmts})", err=True)
-        raise typer.Exit(code=1)
+        raise ValueError(f"unsupported format: {ext} (supported: {fmts})")
 
     assets_parent = output_dir / "assets"
 
@@ -132,9 +131,69 @@ def convert(
 
     try:
         convert_single(src, Path(output_dir))
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
     finally:
         if temp_path:
             print_cleanup_hint(temp_path)
+
+
+@app.command()
+def bulk_convert(
+    recursive: str = typer.Option(None, "-r", "--recursive", help="Directory to scan recursively"),
+    file_list: str = typer.Option(None, "-f", "--file-list", help="File containing one source per line"),
+    output_dir: str = typer.Option("raw", help="Output directory"),
+    output_layout: str = typer.Option("flat", "--output-layout", help="Output layout: flat or mirror"),
+):
+    if (recursive is not None) == (file_list is not None):
+        typer.echo("Error: specify either -r (directory) or -f (file list), not both", err=True)
+        raise typer.Exit(code=1)
+
+    if output_layout not in ("flat", "mirror"):
+        typer.echo("Error: --output-layout must be 'flat' or 'mirror'", err=True)
+        raise typer.Exit(code=1)
+
+    out = Path(output_dir)
+
+    if recursive is not None:
+        root = Path(recursive)
+        if not root.is_dir():
+            typer.echo(f"Error: not a directory: {root}", err=True)
+            raise typer.Exit(code=1)
+        for src_path in _collect_files_from_dir(root):
+            try:
+                convert_single(src_path, out, layout=output_layout, relative_to=root)
+            except ValueError as e:
+                typer.echo(f"Error converting {src_path}: {e}", err=True)
+    else:
+        assert file_list is not None
+        flist = Path(file_list)
+        try:
+            lines = _collect_files_from_list(flist)
+        except FileNotFoundError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1)
+
+        for line in lines:
+            try:
+                local_path, temp_path = _resolve_source(line)
+            except (ValueError, URLError) as e:
+                typer.echo(f"Error processing '{line}': {e}", err=True)
+                continue
+            src = Path(local_path)
+            if not src.exists():
+                typer.echo(f"Error: file not found: {local_path}", err=True)
+                if temp_path:
+                    print_cleanup_hint(temp_path)
+                continue
+            try:
+                convert_single(src, out, layout=output_layout)
+            except ValueError as e:
+                typer.echo(f"Error converting {src}: {e}", err=True)
+            finally:
+                if temp_path:
+                    print_cleanup_hint(temp_path)
 
 
 if __name__ == "__main__":
