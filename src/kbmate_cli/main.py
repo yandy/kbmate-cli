@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 from urllib.error import URLError
 from urllib.parse import urlparse
 
@@ -55,6 +56,44 @@ _CONVERTERS = {
 }
 
 
+def convert_single(
+    source_path: Path,
+    output_dir: Path,
+    *,
+    layout: Literal["flat", "mirror"] = "flat",
+    relative_to: Path | None = None,
+) -> None:
+    ext = source_path.suffix.lower()
+    converter = _CONVERTERS.get(ext)
+    if converter is None:
+        fmts = ", ".join(_CONVERTERS)
+        typer.echo(f"Error: unsupported format: {ext} (supported: {fmts})", err=True)
+        raise typer.Exit(code=1)
+
+    assets_parent = output_dir / "assets"
+
+    if layout == "mirror" and relative_to is not None:
+        try:
+            rel = source_path.relative_to(relative_to).parent
+        except ValueError:
+            rel = Path(".")
+    else:
+        rel = Path(".")
+
+    sanitized_ref, _ = _md_path(str(assets_parent / rel), f"{source_path.stem}.x")
+    safe_stem = Path(sanitized_ref).stem
+
+    assets_dir = assets_parent / rel / safe_stem
+    converts_dir = output_dir / "converts" / rel
+    converts_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir.mkdir(parents=True, exist_ok=True)
+
+    markdown_content = converter(source_path, assets_dir)
+    md_path = converts_dir / f"{safe_stem}.md"
+    md_path.write_text(markdown_content, encoding="utf-8")
+    typer.echo(f"Converted: {source_path} -> {md_path}")
+
+
 @app.command()
 def convert(
     source_file: str = typer.Argument(..., help="Path or URL to the .docx or .pdf file"),
@@ -71,29 +110,8 @@ def convert(
         typer.echo(f"Error: file not found: {source_file}", err=True)
         raise typer.Exit(code=1)
 
-    ext = src.suffix.lower()
-    converter = _CONVERTERS.get(ext)
-    if converter is None:
-        fmts = ", ".join(_CONVERTERS)
-        typer.echo(f"Error: unsupported format: {ext} (supported: {fmts})", err=True)
-        raise typer.Exit(code=1)
-
-    out_dir = Path(output_dir)
-    assets_parent = out_dir / "assets"
-
-    sanitized_ref, _ = _md_path(str(assets_parent), f"{src.stem}.x")
-    safe_stem = Path(sanitized_ref).stem
-
-    assets_dir = assets_parent / safe_stem
-    converts_dir = out_dir / "converts"
-    converts_dir.mkdir(parents=True, exist_ok=True)
-    assets_dir.mkdir(parents=True, exist_ok=True)
-
     try:
-        markdown_content = converter(src, assets_dir)
-        md_path = converts_dir / f"{safe_stem}.md"
-        md_path.write_text(markdown_content, encoding="utf-8")
-        typer.echo(f"Converted: {src} -> {md_path}")
+        convert_single(src, Path(output_dir))
     finally:
         if temp_path:
             print_cleanup_hint(temp_path)
