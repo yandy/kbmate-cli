@@ -175,6 +175,10 @@ def bulk_convert(
             typer.echo(f"Error: {e}", err=True)
             raise typer.Exit(code=1)
 
+        if output_layout == "mirror":
+            typer.echo("Error: --output-layout mirror is only supported with -r", err=True)
+            raise typer.Exit(code=1)
+
         for line in lines:
             try:
                 local_path, temp_path = _resolve_source(line)

@@ -247,6 +247,17 @@ def test_bulk_convert_continue_on_error():
         assert len(converted) == 1
 
 
+def test_bulk_convert_file_list_rejects_mirror(tmp_path):
+    flist = tmp_path / "sources.txt"
+    flist.write_text("/path/to/a.pdf\n")
+    result = runner.invoke(app, [
+        "bulk-convert", "-f", str(flist),
+        "--output-layout", "mirror",
+    ])
+    assert result.exit_code != 0
+    assert "mirror is only supported with -r" in result.stderr.lower()
+
+
 def test_bulk_convert_help():
     result = runner.invoke(app, ["bulk-convert", "--help"])
     assert result.exit_code == 0
