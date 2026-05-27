@@ -28,6 +28,26 @@ def _resolve_source(source_file: str) -> tuple[str, Path | None]:
     return str(temp_path), temp_path
 
 
+SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
+
+
+def _collect_files_from_dir(root: Path) -> list[Path]:
+    if not root.is_dir():
+        raise NotADirectoryError(f"not a directory: {root}")
+    files: list[Path] = []
+    for p in root.rglob("*"):
+        if p.suffix.lower() in SUPPORTED_EXTENSIONS and p.is_file():
+            files.append(p)
+    return files
+
+
+def _collect_files_from_list(filelist: Path) -> list[str]:
+    if not filelist.is_file():
+        raise FileNotFoundError(f"file not found: {filelist}")
+    lines = filelist.read_text(encoding="utf-8").splitlines()
+    return [line.strip() for line in lines if line.strip()]
+
+
 def _convert_pdf(src: Path, assets_dir: Path) -> str:
     from kbmate_cli.pdf_converter import convert_pdf
     from kbmate_cli.image_helper import extract_and_relink_images

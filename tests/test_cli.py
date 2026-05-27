@@ -3,7 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
-from kbmate_cli.main import app
+from kbmate_cli.main import app, _collect_files_from_dir, _collect_files_from_list
+import tempfile
 
 runner = CliRunner()
 
@@ -74,3 +75,49 @@ def test_convert_http_url(mock_urlopen):
     )
     assert result.exit_code == 0, f"Failed with output: {result.output}"
     assert "临时文件已保存至" in result.stdout
+
+
+def test_collect_files_from_dir():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "sub").mkdir()
+        pdf1 = root / "a.pdf"
+        docx1 = root / "sub" / "b.docx"
+        txt1 = root / "c.txt"
+        pdf1.write_text("fake pdf")
+        docx1.write_text("fake docx")
+        txt1.write_text("fake txt")
+
+        files = _collect_files_from_dir(root)
+        assert len(files) == 2
+        assert pdf1 in files
+        assert docx1 in files
+        assert txt1 not in files
+
+
+def test_collect_files_from_dir_empty():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        files = _collect_files_from_dir(root)
+        assert files == []
+
+
+def test_collect_files_from_list_local(tmp_path):
+    filelist = tmp_path / "sources.txt"
+    filelist.write_text("/path/to/a.pdf\n/path/to/b.docx\n")
+    result = _collect_files_from_list(filelist)
+    assert result == ["/path/to/a.pdf", "/path/to/b.docx"]
+
+
+def test_collect_files_from_list_urls(tmp_path):
+    filelist = tmp_path / "sources.txt"
+    filelist.write_text("https://example.com/doc.pdf\n/path/to/local.docx\n")
+    result = _collect_files_from_list(filelist)
+    assert result == ["https://example.com/doc.pdf", "/path/to/local.docx"]
+
+
+def test_collect_files_from_list_empty_lines(tmp_path):
+    filelist = tmp_path / "sources.txt"
+    filelist.write_text("/path/to/a.pdf\n\n/path/to/b.docx\n  \n")
+    result = _collect_files_from_list(filelist)
+    assert result == ["/path/to/a.pdf", "/path/to/b.docx"]
