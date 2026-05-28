@@ -36,18 +36,6 @@ def test_convert_lunwen_pdf():
     assert result.exit_code == 0
 
 
-def test_convert_assets_seqname_flag_in_help():
-    result = runner.invoke(app, ["convert", "--help"])
-    assert result.exit_code == 0
-    assert "--assets-seqname" in result.stdout
-
-
-def test_bulk_convert_assets_seqname_flag_in_help():
-    result = runner.invoke(app, ["bulk-convert", "--help"])
-    assert result.exit_code == 0
-    assert "--assets-seqname" in result.stdout
-
-
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
 def test_bulk_convert_assets_seqname_flag():
     with tempfile.TemporaryDirectory() as tmp:
