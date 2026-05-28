@@ -33,6 +33,6 @@ def test_extract_and_relink_images():
 
     assert (dst_dir / "image-001.png").exists()
     assert (dst_dir / "image-002.png").exists()
-    assert "/image-001.png" in result
-    assert "/image-002.png" in result
+    assert "![](assets/test_relink_dst/image-001.png)" in result
+    assert "![](assets/test_relink_dst/image-002.png)" in result
     assert "doc-0001-01" not in result
