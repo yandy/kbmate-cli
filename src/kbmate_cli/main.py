@@ -48,22 +48,22 @@ def _collect_files_from_list(filelist: Path) -> list[str]:
     return [line.strip() for line in lines if line.strip()]
 
 
-def _convert_pdf(src: Path, assets_dir: Path) -> str:
+def _convert_pdf(src: Path, src_dir: Path, dst_dir: Path, *, sequential: bool = False, ref_subdir: str = "") -> str:
     from kbmate_cli.pdf_converter import convert_pdf
     from kbmate_cli.image_helper import extract_and_relink_images
 
-    md = convert_pdf(str(src), str(assets_dir))
-    return extract_and_relink_images(md, str(assets_dir), str(assets_dir))
+    md = convert_pdf(str(src), str(src_dir))
+    return extract_and_relink_images(md, str(src_dir), str(dst_dir), sequential=sequential, ref_subdir=ref_subdir)
 
 
-def _convert_docx(src: Path, assets_dir: Path) -> str:
+def _convert_docx(src: Path, src_dir: Path, dst_dir: Path, *, sequential: bool = False, ref_subdir: str = "") -> str:
     from kbmate_cli.docx_converter import convert_docx
     from kbmate_cli.image_helper import normalize_image_refs, extract_and_relink_images
 
-    pandoc_output = assets_dir / "pandoc_output"
+    pandoc_output = src_dir / "pandoc_output"
     md = convert_docx(str(src), str(pandoc_output))
     md = normalize_image_refs(md)
-    md = extract_and_relink_images(md, str(pandoc_output), str(assets_dir))
+    md = extract_and_relink_images(md, str(pandoc_output), str(dst_dir), sequential=sequential, ref_subdir=ref_subdir)
     if pandoc_output.exists():
         import shutil
         shutil.rmtree(pandoc_output)
@@ -82,6 +82,7 @@ def convert_single(
     *,
     layout: Literal["flat", "mirror"] = "flat",
     relative_to: Path | None = None,
+    assets_seqname: bool = False,
 ) -> None:
     ext = source_path.suffix.lower()
     converter = _CONVERTERS.get(ext)
@@ -107,7 +108,14 @@ def convert_single(
     converts_dir.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
 
-    markdown_content = converter(source_path, assets_dir)
+    if assets_seqname:
+        markdown_content = converter(source_path, assets_dir, assets_dir, sequential=True)
+    else:
+        hash_base = assets_parent / rel
+        hash_base.mkdir(parents=True, exist_ok=True)
+        ref_subdir = "" if rel == Path(".") else str(rel)
+        markdown_content = converter(source_path, assets_dir, hash_base, sequential=False, ref_subdir=ref_subdir)
+
     md_path = converts_dir / f"{safe_stem}.md"
     md_path.write_text(markdown_content, encoding="utf-8")
     typer.echo(f"Converted: {source_path} -> {md_path}")
@@ -117,6 +125,7 @@ def convert_single(
 def convert(
     source_file: str = typer.Argument(..., help="Path or URL to the .docx or .pdf file"),
     output_dir: str = typer.Option("raw", help="Output directory"),
+    assets_seqname: bool = typer.Option(False, "--assets-seqname", help="Use sequential naming for asset images instead of content hash"),
 ):
     try:
         source_file, temp_path = _resolve_source(source_file)
@@ -130,7 +139,7 @@ def convert(
         raise typer.Exit(code=1)
 
     try:
-        convert_single(src, Path(output_dir))
+        convert_single(src, Path(output_dir), assets_seqname=assets_seqname)
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -145,6 +154,7 @@ def bulk_convert(
     file_list: str = typer.Option(None, "-f", "--file-list", help="File containing one source per line"),
     output_dir: str = typer.Option("raw", help="Output directory"),
     output_layout: str = typer.Option("flat", "--output-layout", help="Output layout: flat or mirror"),
+    assets_seqname: bool = typer.Option(False, "--assets-seqname", help="Use sequential naming for asset images instead of content hash"),
 ):
     if (recursive is not None) == (file_list is not None):
         typer.echo("Error: specify either -r (directory) or -f (file list), not both", err=True)
@@ -163,7 +173,7 @@ def bulk_convert(
             raise typer.Exit(code=1)
         for src_path in _collect_files_from_dir(root):
             try:
-                convert_single(src_path, out, layout=output_layout, relative_to=root)
+                convert_single(src_path, out, layout=output_layout, relative_to=root, assets_seqname=assets_seqname)
             except Exception as e:
                 typer.echo(f"Error converting {src_path}: {e}", err=True)
     else:
@@ -192,7 +202,7 @@ def bulk_convert(
                     print_cleanup_hint(temp_path)
                 continue
             try:
-                convert_single(src, out, layout=output_layout)
+                convert_single(src, out, layout=output_layout, assets_seqname=assets_seqname)
             except Exception as e:
                 typer.echo(f"Error converting {src}: {e}", err=True)
             finally:

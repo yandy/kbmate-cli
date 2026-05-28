@@ -36,15 +36,43 @@ def test_convert_lunwen_pdf():
     assert result.exit_code == 0
 
 
+def test_convert_assets_seqname_flag_in_help():
+    result = runner.invoke(app, ["convert", "--help"])
+    assert result.exit_code == 0
+    assert "--assets-seqname" in result.stdout
+
+
+def test_bulk_convert_assets_seqname_flag_in_help():
+    result = runner.invoke(app, ["bulk-convert", "--help"])
+    assert result.exit_code == 0
+    assert "--assets-seqname" in result.stdout
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_bulk_convert_assets_seqname_flag():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        pdf = root / "a.pdf"
+        pdf.write_text("fake")
+        out = root / "out"
+        result = runner.invoke(app, [
+            "bulk-convert", "-r", str(root),
+            "--output-dir", str(out),
+            "--assets-seqname",
+        ])
+        assert result.exit_code == 0
+        assets_dir = out / "assets" / "a"
+        assert assets_dir.exists()
+
+
 def test_convert_pdf_with_spaces_in_filename():
     src = FIXTURE_DIR / "eigent README CN.pdf"
     out = Path("/tmp/test_cli_spaces_output")
     result = runner.invoke(app, ["convert", str(src), "--output-dir", str(out)])
     assert result.exit_code == 0, f"Failed with output: {result.output}"
-    assets_dir = out / "assets" / "eigent_README_CN"
-    assert assets_dir.exists()
-    images = list(assets_dir.glob("*"))
-    assert len(images) > 0, f"No images found in {assets_dir}"
+    assert (out / "assets").exists()
+    hash_dirs = list((out / "assets").glob("*"))
+    assert len(hash_dirs) > 0, f"No hash dirs found in {out / 'assets'}"
 
 
 def test_convert_file_url():
