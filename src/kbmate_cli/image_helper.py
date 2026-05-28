@@ -28,7 +28,7 @@ def extract_and_relink_images(markdown: str, src_dir: str, dst_dir: str) -> str:
             dst_file = dst_path / new_name
             shutil.move(str(src_file), str(dst_file))
             old_ref = match.group(0)
-            new_ref = f"![](/assets/{dst_path.name}/{new_name})"
+            new_ref = f"![](assets/{dst_path.name}/{new_name})"
             result = result.replace(old_ref, new_ref, 1)
             counter += 1
 
