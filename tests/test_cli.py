@@ -36,12 +36,11 @@ def test_convert_lunwen_pdf():
     assert result.exit_code == 0
 
 
-@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
 def test_bulk_convert_assets_seqname_flag():
+    src = FIXTURE_DIR / "eigent README CN.pdf"
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        pdf = root / "a.pdf"
-        pdf.write_text("fake")
+        shutil.copy2(src, root / src.name)
         out = root / "out"
         result = runner.invoke(app, [
             "bulk-convert", "-r", str(root),
@@ -49,8 +48,14 @@ def test_bulk_convert_assets_seqname_flag():
             "--assets-seqname",
         ])
         assert result.exit_code == 0
-        assets_dir = out / "assets" / "a"
+        assets_dir = out / "assets" / "eigent_README_CN"
         assert assets_dir.exists()
+        images = sorted(assets_dir.glob("*.png"))
+        assert len(images) > 0
+        for i, img in enumerate(images, 1):
+            assert img.name == f"image-{i:03d}.png"
+        md_content = (out / "converts" / "eigent_README_CN.md").read_text()
+        assert f"assets/eigent_README_CN/image-001.png" in md_content
 
 
 def test_convert_pdf_with_spaces_in_filename():
@@ -420,6 +425,38 @@ def test_bulk_convert_file_list_file_not_found_with_temp(mock_resolve, mock_hint
     result = runner.invoke(app, ["bulk-convert", "-f", str(flist)])
     assert result.exit_code == 0
     mock_hint.assert_called_once()
+
+
+# ── Assets dir cleanup tests ──────────────────────────────────────────
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock\nno images")})
+def test_convert_single_cleans_up_empty_assets_dir(tmp_path):
+    pdf = tmp_path / "test.pdf"
+    pdf.write_text("fake")
+    convert_single(pdf, tmp_path)
+    assert (tmp_path / "converts" / "test.md").exists()
+    assert not (tmp_path / "assets" / "test").exists()
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock\nno images")})
+def test_bulk_convert_flat_cleans_up_empty_assets_dirs(tmp_path):
+    root = tmp_path
+    pdf1 = root / "a.pdf"
+    pdf2 = root / "b.pdf"
+    pdf1.write_text("fake")
+    pdf2.write_text("fake")
+
+    out = root / "out"
+    result = runner.invoke(app, [
+        "bulk-convert", "-r", str(root),
+        "--output-dir", str(out),
+    ])
+    assert result.exit_code == 0
+    assert (out / "converts" / "a.md").exists()
+    assert (out / "converts" / "b.md").exists()
+    assert not (out / "assets" / "a").exists()
+    assert not (out / "assets" / "b").exists()
 
 
 @patch("kbmate_cli.main.print_cleanup_hint")

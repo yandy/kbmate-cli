@@ -118,6 +118,10 @@ def convert_single(
 
     md_path = converts_dir / f"{safe_stem}.md"
     md_path.write_text(markdown_content, encoding="utf-8")
+
+    if assets_dir.exists() and not any(assets_dir.iterdir()):
+        assets_dir.rmdir()
+
     typer.echo(f"Converted: {source_path} -> {md_path}")
 
 
