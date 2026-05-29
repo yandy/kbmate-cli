@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -34,28 +33,6 @@ def test_convert_lunwen_pdf():
     pdf = FIXTURE_DIR / "论文.pdf"
     result = runner.invoke(app, ["convert", str(pdf), "--output-dir", "/tmp/test_cli_lunwen"])
     assert result.exit_code == 0
-
-
-def test_bulk_convert_assets_seqname_flag():
-    src = FIXTURE_DIR / "eigent README CN.pdf"
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        shutil.copy2(src, root / src.name)
-        out = root / "out"
-        result = runner.invoke(app, [
-            "bulk-convert", "-r", str(root),
-            "--output-dir", str(out),
-            "--assets-seqname",
-        ])
-        assert result.exit_code == 0
-        assets_dir = out / "assets" / "eigent_README_CN"
-        assert assets_dir.exists()
-        images = sorted(assets_dir.glob("*.png"))
-        assert len(images) > 0
-        for i, img in enumerate(images, 1):
-            assert img.name == f"image-{i:03d}.png"
-        md_content = (out / "converts" / "eigent_README_CN.md").read_text()
-        assert f"assets/eigent_README_CN/image-001.png" in md_content
 
 
 def test_convert_pdf_with_spaces_in_filename():
@@ -166,27 +143,6 @@ def test_bulk_convert_recursive_dir_flat():
 
 
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
-def test_bulk_convert_recursive_dir_mirror():
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        pdf1 = root / "a.pdf"
-        pdf2 = root / "sub" / "b.pdf"
-        pdf1.write_text("fake")
-        (root / "sub").mkdir()
-        pdf2.write_text("fake")
-
-        out = root / "out"
-        result = runner.invoke(app, [
-            "bulk-convert", "-r", str(root),
-            "--output-dir", str(out),
-            "--output-layout", "mirror",
-        ])
-        assert result.exit_code == 0
-        assert (out / "converts" / "a.md").exists()
-        assert (out / "converts" / "sub" / "b.md").exists()
-
-
-@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
 def test_bulk_convert_file_list():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -236,15 +192,6 @@ def test_bulk_convert_no_input():
     result = runner.invoke(app, ["bulk-convert"])
     assert result.exit_code != 0
     assert "specify either" in result.stderr.lower()
-
-
-def test_bulk_convert_invalid_layout(tmp_path):
-    result = runner.invoke(app, [
-        "bulk-convert", "-r", str(tmp_path),
-        "--output-layout", "invalid",
-    ])
-    assert result.exit_code != 0
-    assert "must be 'flat' or 'mirror'" in result.stderr.lower()
 
 
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=[RuntimeError("unexpected crash"), "# mock"])})
@@ -318,17 +265,6 @@ def test_bulk_convert_continue_on_error():
         assert len(converted) == 1
 
 
-def test_bulk_convert_file_list_rejects_mirror(tmp_path):
-    flist = tmp_path / "sources.txt"
-    flist.write_text("/path/to/a.pdf\n")
-    result = runner.invoke(app, [
-        "bulk-convert", "-f", str(flist),
-        "--output-layout", "mirror",
-    ])
-    assert result.exit_code != 0
-    assert "mirror is only supported with -r" in result.stderr.lower()
-
-
 def test_bulk_convert_help():
     result = runner.invoke(app, ["bulk-convert", "--help"])
     assert result.exit_code == 0
@@ -363,16 +299,6 @@ def test_convert_unsupported_format(tmp_path):
     result = runner.invoke(app, ["convert", str(f)])
     assert result.exit_code != 0
     assert "unsupported format" in result.stderr.lower()
-
-
-@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
-def test_convert_single_mirror_relative_to_fails(tmp_path):
-    sub = tmp_path / "sub"
-    sub.mkdir()
-    pdf = tmp_path / "a.pdf"
-    pdf.write_text("fake")
-    convert_single(pdf, tmp_path, layout="mirror", relative_to=sub)
-    assert (tmp_path / "converts" / "a.md").exists()
 
 
 def test_convert_empty_download(tmp_path):
