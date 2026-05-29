@@ -382,9 +382,9 @@ def test_bulk_convert_file_list_convert_error_with_temp(mock_resolve, mock_hint,
     mock_hint.assert_called_once()
 
 
-def test_convert_skip_duplicate():
+def test_convert_skip_duplicate(tmp_path):
     pdf = FIXTURE_DIR / "eigent README CN.pdf"
-    out = Path("/tmp/test_cli_skip_dup")
+    out = tmp_path / "out"
     result1 = runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
     assert result1.exit_code == 0
     result2 = runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
@@ -414,9 +414,9 @@ def test_convert_skip_by_hash_content(tmp_path):
     assert md_path.exists()
 
 
-def test_convert_records_db():
+def test_convert_records_db(tmp_path):
     pdf = FIXTURE_DIR / "eigent README CN.pdf"
-    out = Path("/tmp/test_cli_db")
+    out = tmp_path / "out"
     runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
     db_path = out / "kbmate.db"
     assert db_path.exists()

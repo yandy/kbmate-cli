@@ -49,6 +49,14 @@ def _collect_files_from_list(filelist: Path) -> list[str]:
     return [line.strip() for line in lines if line.strip()]
 
 
+def _hash_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _convert_pdf(src: Path, src_dir: Path, dst_dir: Path) -> str:
     from kbmate_cli.pdf_converter import convert_pdf
     from kbmate_cli.image_helper import extract_and_relink_images
@@ -105,7 +113,8 @@ def convert_single(source_path: Path, output_dir: Path) -> None:
         fmts = ", ".join(_CONVERTERS)
         raise ValueError(f"unsupported format: {ext} (supported: {fmts})")
 
-    source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    source_hash = _hash_file(source_path)
+
     md_rel = Path(source_hash[:2]) / source_hash[2:4] / f"{source_hash[4:]}.md"
     md_path = output_dir / "converts" / md_rel
     if md_path.exists():
