@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -128,18 +129,24 @@ def test_bulk_convert_recursive_dir_flat():
         root = Path(tmp)
         pdf1 = root / "a.pdf"
         pdf2 = root / "sub" / "b.pdf"
-        pdf1.write_text("fake")
+        pdf1.write_text("a")
         (root / "sub").mkdir()
-        pdf2.write_text("fake")
+        pdf2.write_text("b")
 
         out = root / "out"
+
+        h1 = hashlib.sha256(b"a").hexdigest()
+        h2 = hashlib.sha256(b"b").hexdigest()
+        md1 = out / "converts" / h1[:2] / h1[2:4] / f"{h1[4:]}.md"
+        md2 = out / "converts" / h2[:2] / h2[2:4] / f"{h2[4:]}.md"
+
         result = runner.invoke(app, [
             "bulk-convert", "-r", str(root),
             "--output-dir", str(out),
         ])
         assert result.exit_code == 0
-        assert (out / "converts" / "a.md").exists()
-        assert (out / "converts" / "b.md").exists()
+        assert md1.exists()
+        assert md2.exists()
 
 
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
@@ -152,12 +159,16 @@ def test_bulk_convert_file_list():
         flist.write_text(str(pdf1) + "\n")
 
         out = root / "out"
+
+        h = hashlib.sha256(b"fake").hexdigest()
+        md = out / "converts" / h[:2] / h[2:4] / f"{h[4:]}.md"
+
         result = runner.invoke(app, [
             "bulk-convert", "-f", str(flist),
             "--output-dir", str(out),
         ])
         assert result.exit_code == 0
-        assert (out / "converts" / "a.md").exists()
+        assert md.exists()
 
 
 @patch("kbmate_cli.main._resolve_source")
@@ -173,12 +184,16 @@ def test_bulk_convert_file_list_with_url(mock_resolve):
         flist.write_text("https://example.com/doc.pdf\n")
 
         out = root / "out"
+
+        h = hashlib.sha256(b"fake").hexdigest()
+        md = out / "converts" / h[:2] / h[2:4] / f"{h[4:]}.md"
+
         result = runner.invoke(app, [
             "bulk-convert", "-f", str(flist),
             "--output-dir", str(out),
         ])
         assert result.exit_code == 0
-        assert (out / "converts" / "downloaded.md").exists()
+        assert md.exists()
 
 
 def test_bulk_convert_mutual_exclusive(tmp_path):
@@ -353,38 +368,6 @@ def test_bulk_convert_file_list_file_not_found_with_temp(mock_resolve, mock_hint
     mock_hint.assert_called_once()
 
 
-# ── Assets dir cleanup tests ──────────────────────────────────────────
-
-
-@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock\nno images")})
-def test_convert_single_cleans_up_empty_assets_dir(tmp_path):
-    pdf = tmp_path / "test.pdf"
-    pdf.write_text("fake")
-    convert_single(pdf, tmp_path)
-    assert (tmp_path / "converts" / "test.md").exists()
-    assert not (tmp_path / "assets" / "test").exists()
-
-
-@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock\nno images")})
-def test_bulk_convert_flat_cleans_up_empty_assets_dirs(tmp_path):
-    root = tmp_path
-    pdf1 = root / "a.pdf"
-    pdf2 = root / "b.pdf"
-    pdf1.write_text("fake")
-    pdf2.write_text("fake")
-
-    out = root / "out"
-    result = runner.invoke(app, [
-        "bulk-convert", "-r", str(root),
-        "--output-dir", str(out),
-    ])
-    assert result.exit_code == 0
-    assert (out / "converts" / "a.md").exists()
-    assert (out / "converts" / "b.md").exists()
-    assert not (out / "assets" / "a").exists()
-    assert not (out / "assets" / "b").exists()
-
-
 @patch("kbmate_cli.main.print_cleanup_hint")
 @patch("kbmate_cli.main._resolve_source")
 @patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(side_effect=ValueError("convert failed"))})
@@ -397,3 +380,67 @@ def test_bulk_convert_file_list_convert_error_with_temp(mock_resolve, mock_hint,
     result = runner.invoke(app, ["bulk-convert", "-f", str(flist)])
     assert result.exit_code == 0
     mock_hint.assert_called_once()
+
+
+def test_convert_skip_duplicate():
+    pdf = FIXTURE_DIR / "eigent README CN.pdf"
+    out = Path("/tmp/test_cli_skip_dup")
+    result1 = runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
+    assert result1.exit_code == 0
+    result2 = runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
+    assert result2.exit_code == 0
+    assert "Skipped" in result2.stdout
+
+
+@patch.dict("kbmate_cli.main._CONVERTERS", {".pdf": MagicMock(return_value="# mock")})
+def test_convert_skip_by_hash_content(tmp_path):
+    src1 = tmp_path / "doc1.pdf"
+    src2 = tmp_path / "doc2.pdf"
+    content = b"same content"
+    src1.write_bytes(content)
+    src2.write_bytes(content)
+
+    hash_hex = hashlib.sha256(content).hexdigest()
+    out = tmp_path / "out"
+
+    result1 = runner.invoke(app, ["convert", str(src1), "--output-dir", str(out)])
+    assert result1.exit_code == 0
+
+    result2 = runner.invoke(app, ["convert", str(src2), "--output-dir", str(out)])
+    assert result2.exit_code == 0
+    assert "Skipped" in result2.stdout
+
+    md_path = out / "converts" / hash_hex[:2] / hash_hex[2:4] / f"{hash_hex[4:]}.md"
+    assert md_path.exists()
+
+
+def test_convert_records_db():
+    pdf = FIXTURE_DIR / "eigent README CN.pdf"
+    out = Path("/tmp/test_cli_db")
+    runner.invoke(app, ["convert", str(pdf), "--output-dir", str(out)])
+    db_path = out / "kbmate.db"
+    assert db_path.exists()
+    import sqlite3
+    conn = sqlite3.connect(str(db_path))
+    row = conn.execute(
+        "SELECT source_hash, source_name FROM conversions"
+    ).fetchone()
+    conn.close()
+    assert row is not None
+    assert row[1] == "eigent README CN.pdf"
+
+
+def test_convert_skip_does_not_record_db(tmp_path):
+    src = tmp_path / "test.pdf"
+    src.write_bytes(b"some content")
+    out = tmp_path / "out"
+
+    hash_hex = hashlib.sha256(b"some content").hexdigest()
+    md_path = out / "converts" / hash_hex[:2] / hash_hex[2:4] / f"{hash_hex[4:]}.md"
+    md_path.parent.mkdir(parents=True, exist_ok=True)
+    md_path.write_text("pre-existing")
+
+    result = runner.invoke(app, ["convert", str(src), "--output-dir", str(out)])
+    assert "Skipped" in result.stdout
+    db_path = out / "kbmate.db"
+    assert not db_path.exists()

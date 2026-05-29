@@ -1,4 +1,6 @@
-import re
+import hashlib
+import sqlite3
+import tempfile
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlparse
@@ -75,8 +77,25 @@ _CONVERTERS = {
 }
 
 
-def _sanitize_stem(name: str) -> str:
-    return re.sub(r'[^\w.\-]', '_', name)
+def _record_conversion(output_dir: Path, source_hash: str, source_name: str) -> None:
+    db_path = output_dir / "kbmate.db"
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS conversions ("
+            "  source_hash TEXT NOT NULL,"
+            "  source_name TEXT NOT NULL,"
+            "  converted_at TEXT NOT NULL DEFAULT (datetime('now')),"
+            "  PRIMARY KEY (source_hash, source_name)"
+            ")"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO conversions (source_hash, source_name) VALUES (?, ?)",
+            (source_hash, source_name),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def convert_single(source_path: Path, output_dir: Path) -> None:
@@ -86,22 +105,23 @@ def convert_single(source_path: Path, output_dir: Path) -> None:
         fmts = ", ".join(_CONVERTERS)
         raise ValueError(f"unsupported format: {ext} (supported: {fmts})")
 
+    source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
+    md_rel = Path(source_hash[:2]) / source_hash[2:4] / f"{source_hash[4:]}.md"
+    md_path = output_dir / "converts" / md_rel
+    if md_path.exists():
+        typer.echo(f"Skipped (already converted): {source_path}")
+        return
+
     assets_parent = output_dir / "assets"
-    safe_stem = _sanitize_stem(source_path.stem)
+    assets_parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(tempfile.mkdtemp(dir=str(assets_parent)))
 
-    assets_dir = assets_parent / safe_stem
-    converts_dir = output_dir / "converts"
-    converts_dir.mkdir(parents=True, exist_ok=True)
-    assets_dir.mkdir(parents=True, exist_ok=True)
+    markdown_content = converter(source_path, tmp_dir, assets_parent)
 
-    markdown_content = converter(source_path, assets_dir, assets_parent)
-
-    md_path = converts_dir / f"{safe_stem}.md"
+    md_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.write_text(markdown_content, encoding="utf-8")
 
-    if assets_dir.exists() and not any(assets_dir.iterdir()):
-        assets_dir.rmdir()
-
+    _record_conversion(output_dir, source_hash, source_path.name)
     typer.echo(f"Converted: {source_path} -> {md_path}")
 
 
